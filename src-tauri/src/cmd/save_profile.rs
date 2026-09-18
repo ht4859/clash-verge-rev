@@ -102,7 +102,7 @@ fn profile_affects_runtime(profiles: &IProfiles, index: &str) -> bool {
     let Some(current_uid) = profiles.current.as_ref() else {
         return false;
     };
-    if current_uid == index {
+    if current_uid == index || matches!(index, "Merge" | "Script") {
         return true;
     }
 
@@ -177,5 +177,33 @@ async fn handle_saved_profile_file(
             restore_original(file_path, original_content, original_existed).await?;
             Err(err.to_string().into())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::profile_affects_runtime;
+    use crate::config::{IProfiles, PrfItem, PrfOption};
+
+    #[test]
+    fn global_enhancements_affect_profiles_with_their_own_enhancements() {
+        let profiles = IProfiles {
+            current: Some("active".into()),
+            items: Some(vec![PrfItem {
+                uid: Some("active".into()),
+                option: Some(PrfOption {
+                    merge: Some("private-merge".into()),
+                    script: Some("private-script".into()),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }]),
+        };
+
+        for uid in ["Merge", "Script", "private-merge", "private-script", "active"] {
+            assert!(profile_affects_runtime(&profiles, uid));
+        }
+        assert!(!profile_affects_runtime(&profiles, "unrelated"));
+        assert!(!profile_affects_runtime(&IProfiles::default(), "Merge"));
     }
 }

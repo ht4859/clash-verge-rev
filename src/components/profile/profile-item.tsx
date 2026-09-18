@@ -590,33 +590,33 @@ const ProfileItemBase = (props: ProfileItemProps) => {
   const handleSaveProfileDocument = useLockFn(async () => {
     const currentValue = profileDocument.value
     if (!(await saveProfileFile(uid, currentValue))) {
-      await profileDocument.reload()
-      return
+      return false
     }
     onSave?.(profileDocument.savedValue, currentValue)
     profileDocument.markSaved(currentValue)
+    return true
   })
 
   const handleSaveMergeDocument = useLockFn(async () => {
     const mergeUid = option?.merge ?? ''
     const currentValue = mergeDocument.value
     if (!(await saveProfileFile(mergeUid, currentValue))) {
-      await mergeDocument.reload()
-      return
+      return false
     }
     onSave?.(mergeDocument.savedValue, currentValue)
     mergeDocument.markSaved(currentValue)
+    return true
   })
 
   const handleSaveScriptDocument = useLockFn(async () => {
     const scriptUid = option?.script ?? ''
     const currentValue = scriptDocument.value
     if (!(await saveProfileFile(scriptUid, currentValue))) {
-      await scriptDocument.reload()
-      return
+      return false
     }
     onSave?.(scriptDocument.savedValue, currentValue)
     scriptDocument.markSaved(currentValue)
+    return true
   })
 
   return (

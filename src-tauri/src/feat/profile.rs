@@ -120,6 +120,7 @@ async fn perform_profile_update(
     match PrfItem::from_url(url, None, None, merged_opt.as_ref()).await {
         Ok(mut item) => {
             logging!(info, Type::Config, "[订阅更新] 更新订阅配置成功");
+            discard_download_overrides(&mut item);
             profiles_update_item_safe(uid, &mut item).await?;
             return Ok(());
         }
@@ -139,6 +140,7 @@ async fn perform_profile_update(
     match PrfItem::from_url(url, None, None, merged_opt.as_ref()).await {
         Ok(mut item) => {
             logging!(info, Type::Config, "[订阅更新] 使用 Clash代理 更新订阅配置成功");
+            discard_download_overrides(&mut item);
             profiles_update_item_safe(uid, &mut item).await?;
             handle::Handle::notice_message("update_with_clash_proxy", profile_name);
             return Ok(());
@@ -159,6 +161,7 @@ async fn perform_profile_update(
     let last_err = match PrfItem::from_url(url, None, None, merged_opt.as_ref()).await {
         Ok(mut item) => {
             logging!(info, Type::Config, "[订阅更新] 使用 系统代理 更新订阅配置成功");
+            discard_download_overrides(&mut item);
             profiles_update_item_safe(uid, &mut item).await?;
             handle::Handle::notice_message("update_with_clash_proxy", profile_name);
             return Ok(());
@@ -179,6 +182,17 @@ async fn perform_profile_update(
         handle::Handle::notice_message("update_failed_even_with_clash", format!("{profile_name} - {last_err}"));
     }
     bail!(last_err)
+}
+
+fn discard_download_overrides(item: &mut PrfItem) {
+    // Refresh merges metadata into the saved profile; request-only overrides must not replace its preferences.
+    if let Some(option) = item.option.as_mut() {
+        option.user_agent = None;
+        option.timeout_seconds = None;
+        option.with_proxy = None;
+        option.self_proxy = None;
+        option.danger_accept_invalid_certs = None;
+    }
 }
 
 #[tracing::instrument(skip_all, level = "info", fields(uid = %uid, manual = is_mannual_trigger))]
@@ -234,4 +248,44 @@ pub async fn enhance_profiles() -> Result<ValidationOutcome> {
         logging_error!(Type::Config, Config::sync_dns_override().await);
     }
     Ok(outcome)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::discard_download_overrides;
+    use crate::config::{PrfItem, PrfOption};
+
+    #[test]
+    fn refresh_preserves_download_preferences_after_proxy_fallback() {
+        let saved = PrfOption {
+            user_agent: Some("saved-agent".into()),
+            timeout_seconds: Some(45),
+            self_proxy: Some(false),
+            with_proxy: Some(false),
+            danger_accept_invalid_certs: Some(false),
+            ..Default::default()
+        };
+        for (self_proxy, with_proxy) in [(true, false), (false, true)] {
+            let mut item = PrfItem {
+                option: Some(PrfOption {
+                    user_agent: Some("temporary-agent".into()),
+                    timeout_seconds: Some(90),
+                    self_proxy: Some(self_proxy),
+                    with_proxy: Some(with_proxy),
+                    danger_accept_invalid_certs: Some(true),
+                    update_interval: Some(120),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            };
+            discard_download_overrides(&mut item);
+            assert_eq!(
+                PrfOption::merge(Some(&saved), item.option.as_ref()),
+                Some(PrfOption {
+                    update_interval: Some(120),
+                    ..saved.clone()
+                })
+            );
+        }
+    }
 }

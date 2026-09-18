@@ -404,6 +404,12 @@ export const RulesEditorViewer = (props: Props) => {
 
   const handleVisualizationToggle = () => {
     if (visualization) {
+      setCurrData(
+        yaml.dump(
+          { prepend: prependSeq, append: appendSeq, delete: deleteSeq },
+          { forceQuotes: true },
+        ),
+      )
       setVisualization(false)
       return
     }
@@ -419,13 +425,13 @@ export const RulesEditorViewer = (props: Props) => {
       setPrependSeq(obj?.prepend ?? [])
       setAppendSeq(obj?.append ?? [])
       setDeleteSeq(obj?.delete ?? [])
+      setVisualization(true)
     })
-    setVisualization(true)
   }
 
   // 优化：异步处理大数据yaml.dump，避免UI卡死
   useEffect(() => {
-    if (!hasLoadedSeqConfigRef.current) {
+    if (!visualization || !hasLoadedSeqConfigRef.current) {
       return
     }
 
@@ -464,20 +470,25 @@ export const RulesEditorViewer = (props: Props) => {
         clearTimeout(timeoutId)
       }
     }
-  }, [prependSeq, appendSeq, deleteSeq])
+  }, [prependSeq, appendSeq, deleteSeq, visualization])
 
   const fetchProfile = useCallback(async () => {
-    const data = await readProfileFile(profileUid) // 原配置文件
-    const groupsData = await readProfileFile(groupsUid) // groups配置文件
-    const mergeData = await readProfileFile(mergeUid) // merge配置文件
-    const globalMergeData = await readProfileFile('Merge') // global merge配置文件
-
-    const rulesObj = parseYamlSafe(data) as { rules: [] } | null
-
-    const originGroupsObj = parseYamlSafe(data) as {
-      'proxy-groups': IProxyGroupConfig[]
-    } | null
-    const originGroups = originGroupsObj?.['proxy-groups'] || []
+    const [data, groupsData, mergeData, globalMergeData] = await Promise.all([
+      readProfileFile(profileUid),
+      readProfileFile(groupsUid),
+      readProfileFile(mergeUid),
+      readProfileFile('Merge'),
+    ])
+    type RuleProfile = {
+      rules?: string[]
+      'proxy-groups'?: IProxyGroupConfig[]
+      'rule-providers'?: Record<string, unknown>
+      'sub-rules'?: Record<string, unknown>
+    }
+    const profile = parseYamlSafe(data) as RuleProfile | null
+    const merge = parseYamlSafe(mergeData) as RuleProfile | null
+    const globalMerge = parseYamlSafe(globalMergeData) as RuleProfile | null
+    const originGroups = profile?.['proxy-groups'] || []
     const moreGroupsObj = parseYamlSafe(groupsData) as ISeqProfileConfig | null
     const rawPrependGroups = moreGroupsObj?.['prepend']
     const morePrependGroups = Array.isArray(rawPrependGroups)
@@ -504,39 +515,24 @@ export const RulesEditorViewer = (props: Props) => {
       moreAppendGroups,
     )
 
-    const originRuleSetObj = parseYamlSafe(data) as {
-      'rule-providers': Record<string, unknown>
-    } | null
-    const originRuleSet = originRuleSetObj?.['rule-providers'] || {}
-    const moreRuleSetObj = parseYamlSafe(mergeData) as {
-      'rule-providers': Record<string, unknown>
-    } | null
-    const moreRuleSet = moreRuleSetObj?.['rule-providers'] || {}
-    const globalRuleSetObj = parseYamlSafe(globalMergeData) as {
-      'rule-providers': Record<string, unknown>
-    } | null
-    const globalRuleSet = globalRuleSetObj?.['rule-providers'] || {}
-    const ruleSet = Object.assign({}, originRuleSet, moreRuleSet, globalRuleSet)
-
-    const originSubRuleObj = parseYamlSafe(data) as {
-      'sub-rules': Record<string, unknown>
-    } | null
-    const originSubRule = originSubRuleObj?.['sub-rules'] || {}
-    const moreSubRuleObj = parseYamlSafe(mergeData) as {
-      'sub-rules': Record<string, unknown>
-    } | null
-    const moreSubRule = moreSubRuleObj?.['sub-rules'] || {}
-    const globalSubRuleObj = parseYamlSafe(globalMergeData) as {
-      'sub-rules': Record<string, unknown>
-    } | null
-    const globalSubRule = globalSubRuleObj?.['sub-rules'] || {}
-    const subRule = Object.assign({}, originSubRule, moreSubRule, globalSubRule)
+    const ruleSet = Object.assign(
+      {},
+      profile?.['rule-providers'],
+      merge?.['rule-providers'],
+      globalMerge?.['rule-providers'],
+    )
+    const subRule = Object.assign(
+      {},
+      profile?.['sub-rules'],
+      merge?.['sub-rules'],
+      globalMerge?.['sub-rules'],
+    )
     setProxyPolicyList(
       builtinProxyPolicies.concat(groups.map((group: any) => group.name)),
     )
     setRuleSetList(Object.keys(ruleSet))
     setSubRuleList(Object.keys(subRule))
-    setRuleList(rulesObj?.rules || [])
+    setRuleList(profile?.rules || [])
   }, [groupsUid, mergeUid, profileUid])
 
   useEffect(() => {
@@ -570,13 +566,21 @@ export const RulesEditorViewer = (props: Props) => {
 
   const handleSave = useLockFn(async () => {
     try {
-      if (!(await saveProfileFile(property, currData))) {
-        await fetchContent()
-        onClose()
+      const nextData = visualization
+        ? yaml.dump(
+            { prepend: prependSeq, append: appendSeq, delete: deleteSeq },
+            { forceQuotes: true },
+          )
+        : currData
+      if (visualization) {
+        setCurrData(nextData)
+      }
+      if (!(await saveProfileFile(property, nextData))) {
         return
       }
       showNotice.success('shared.feedback.notifications.saved')
-      onSave?.(prevData, currData)
+      setPrevData(nextData)
+      onSave?.(prevData, nextData)
       onClose()
     } catch (err: any) {
       showNotice.error(err)

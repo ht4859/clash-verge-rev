@@ -39,8 +39,9 @@ const initConnSummaryData: ConnectionSummaryData = {
 let connectionData: ConnectionMonitorData = initConnData
 let connectionSummary: ConnectionSummaryData = initConnSummaryData
 let flushTimer: ReturnType<typeof setTimeout> | null = null
-let pendingMessageData: string | null = null
+let pendingMessageData: { data: string; receivedAt: number } | null = null
 let lastFlushAt = 0
+let lastSampleAt: number | null = null
 
 const connectionListeners = new Set<ConnectionListener>()
 const summaryListeners = new Set<ConnectionListener>()
@@ -103,13 +104,20 @@ const normalizeChains = (chains: string[], previous?: string[]) => {
 const normalizeConnection = (
   connection: IConnectionsItem,
   previous?: IConnectionsItem,
+  elapsedSeconds = 0,
 ): IConnectionsItem => {
   const metadata = normalizeMetadata(connection.metadata, previous?.metadata)
   const chains = normalizeChains(connection.chains || [], previous?.chains)
   const upload = connection.upload ?? 0
   const download = connection.download ?? 0
-  const curUpload = previous ? upload - previous.upload : 0
-  const curDownload = previous ? download - previous.download : 0
+  const curUpload =
+    previous && elapsedSeconds > 0
+      ? Math.max(0, upload - previous.upload) / elapsedSeconds
+      : 0
+  const curDownload =
+    previous && elapsedSeconds > 0
+      ? Math.max(0, download - previous.download) / elapsedSeconds
+      : 0
   const rule = connection.rule || ''
   const rulePayload = connection.rulePayload || ''
   const start = connection.start || ''
@@ -146,6 +154,7 @@ const normalizeConnection = (
 const mergeConnectionSnapshot = (
   payload: IConnections,
   previous: ConnectionMonitorData = initConnData,
+  elapsedSeconds = 0,
 ): ConnectionMonitorData => {
   const nextConnections = payload.connections ?? []
   const previousActive = previous.activeConnections ?? []
@@ -162,7 +171,9 @@ const mergeConnectionSnapshot = (
     const connection = nextConnections[i]
     const previousConnection = previousActiveById.get(connection.id)
     if (previousConnection) previousActiveById.delete(connection.id)
-    activeConnections.push(normalizeConnection(connection, previousConnection))
+    activeConnections.push(
+      normalizeConnection(connection, previousConnection, elapsedSeconds),
+    )
   }
 
   if (previousActiveById.size === 0) {
@@ -219,20 +230,27 @@ const flushPendingMessage = () => {
 
   let payload: IConnections
   try {
-    payload = JSON.parse(messageData) as IConnections
+    payload = JSON.parse(messageData.data) as IConnections
   } catch (err) {
     console.error('[Connections] Failed to parse websocket payload', err)
     return
   }
 
   lastFlushAt = Date.now()
+  const elapsedSeconds =
+    lastSampleAt === null ? 0 : (messageData.receivedAt - lastSampleAt) / 1000
+  lastSampleAt = messageData.receivedAt
 
-  connectionData = mergeConnectionSnapshot(payload, connectionData)
+  connectionData = mergeConnectionSnapshot(
+    payload,
+    connectionData,
+    elapsedSeconds,
+  )
   notifyConnectionListeners()
 }
 
 const enqueueConnectionMessage = (messageData: string) => {
-  pendingMessageData = messageData
+  pendingMessageData = { data: messageData, receivedAt: performance.now() }
   if (flushTimer) return
 
   const elapsed = Date.now() - lastFlushAt
@@ -249,6 +267,8 @@ const enqueueConnectionMessage = (messageData: string) => {
 
 const clearPendingMessage = () => {
   pendingMessageData = null
+  lastSampleAt = null
+  lastFlushAt = 0
   if (flushTimer) {
     window.clearTimeout(flushTimer)
     flushTimer = null
@@ -266,8 +286,16 @@ const createSocketSupervisor = (options: {
   onText: (data: string) => void
   closeLogLabel: string
   onIdle?: () => void
+  onConnected?: () => void
 }): SocketSupervisor => {
-  const { listeners, connectSocket, onText, closeLogLabel, onIdle } = options
+  const {
+    listeners,
+    connectSocket,
+    onText,
+    closeLogLabel,
+    onIdle,
+    onConnected,
+  } = options
   const hasSubscribers = () => listeners.size > 0
   let socket: MihomoWebSocket | null = null
   let connecting = false
@@ -319,6 +347,7 @@ const createSocketSupervisor = (options: {
         await connected.close()
         return
       }
+      onConnected?.()
       socket = connected
       connected.addListener((message) => {
         if (socket !== connected) return
@@ -373,6 +402,7 @@ const connectionSupervisor = createSocketSupervisor({
   onText: enqueueConnectionMessage,
   closeLogLabel: 'connection',
   onIdle: clearPendingMessage,
+  onConnected: clearPendingMessage,
 })
 
 const summarySupervisor = createSocketSupervisor({

@@ -253,6 +253,12 @@ export const ProxiesEditorViewer = (props: Props) => {
 
   const handleVisualizationToggle = () => {
     if (visualization) {
+      setCurrData(
+        yaml.dump(
+          { prepend: prependSeq, append: appendSeq, delete: deleteSeq },
+          { forceQuotes: true },
+        ),
+      )
       setVisualization(false)
       return
     }
@@ -268,12 +274,13 @@ export const ProxiesEditorViewer = (props: Props) => {
       setPrependSeq(obj?.prepend ?? [])
       setAppendSeq(obj?.append ?? [])
       setDeleteSeq(obj?.delete ?? [])
+      setVisualization(true)
     })
-    setVisualization(true)
   }
 
   useEffect(() => {
     if (
+      !visualization ||
       !hasLoadedSeqConfigRef.current ||
       !(prependSeq && appendSeq && deleteSeq)
     ) {
@@ -312,7 +319,7 @@ export const ProxiesEditorViewer = (props: Props) => {
         clearTimeout(timeoutId)
       }
     }
-  }, [prependSeq, appendSeq, deleteSeq])
+  }, [prependSeq, appendSeq, deleteSeq, visualization])
 
   useEffect(() => {
     if (!open) return
@@ -329,13 +336,21 @@ export const ProxiesEditorViewer = (props: Props) => {
 
   const handleSave = useLockFn(async () => {
     try {
-      if (!(await saveProfileFile(property, currData))) {
-        await fetchContent()
-        onClose()
+      const nextData = visualization
+        ? yaml.dump(
+            { prepend: prependSeq, append: appendSeq, delete: deleteSeq },
+            { forceQuotes: true },
+          )
+        : currData
+      if (visualization) {
+        setCurrData(nextData)
+      }
+      if (!(await saveProfileFile(property, nextData))) {
         return
       }
       showNotice.success('shared.feedback.notifications.saved')
-      onSave?.(prevData, currData)
+      setPrevData(nextData)
+      onSave?.(prevData, nextData)
       onClose()
     } catch (err) {
       showNotice.error(err)

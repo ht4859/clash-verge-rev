@@ -301,6 +301,7 @@ export const GroupsEditorViewer = (props: Props) => {
 
   const handleVisualizationToggle = () => {
     if (visualization) {
+      setCurrData(buildGroupsYaml(prependSeq, appendSeq, deleteSeq))
       setVisualization(false)
       return
     }
@@ -325,13 +326,19 @@ export const GroupsEditorViewer = (props: Props) => {
         }
         return normalized
       })
+      setVisualization(true)
     })
-    setVisualization(true)
   }
 
   // 优化：异步处理大数据yaml.dump，避免UI卡死
   useEffect(() => {
-    if (hasLoadedSeqConfigRef.current && prependSeq && appendSeq && deleteSeq) {
+    if (
+      visualization &&
+      hasLoadedSeqConfigRef.current &&
+      prependSeq &&
+      appendSeq &&
+      deleteSeq
+    ) {
       const serialize = () => {
         if (!hasLoadedSeqConfigRef.current) {
           return
@@ -350,7 +357,7 @@ export const GroupsEditorViewer = (props: Props) => {
         cancelIdleCallback(handle)
       }
     }
-  }, [prependSeq, appendSeq, deleteSeq])
+  }, [prependSeq, appendSeq, deleteSeq, visualization])
 
   const fetchProxyPolicy = useCallback(async () => {
     const data = await readProfileFile(profileUid)
@@ -473,8 +480,6 @@ export const GroupsEditorViewer = (props: Props) => {
       }
 
       if (!(await saveProfileFile(property, nextData))) {
-        await fetchContent()
-        onClose()
         return
       }
       showNotice.success('shared.feedback.notifications.saved')

@@ -259,20 +259,9 @@ impl CoreConfigValidator {
             content.contains("function main") || content.contains("const main") || content.contains("let main");
 
         // Boa parsing is pure CPU; keep it off the async worker, with a timeout.
-        let syntax = crate::process::AsyncHandler::spawn_blocking(move || {
-            use boa_engine::{Context, Source};
-
-            let mut context = Context::default();
-            let _ = context.eval(Source::from_bytes(
-                "var console = Object.freeze({log(...data){},info(...data){},error(...data){},debug(...data){}});",
-            ));
-            context
-                .eval(Source::from_bytes(&content))
-                .map(|_| ())
-                .map_err(|err| err.to_string())
-        });
+        let syntax = crate::process::AsyncHandler::spawn_blocking(move || parse_script_syntax(&content));
         let result = match tokio::time::timeout(SYNTAX_CHECK_TIMEOUT, syntax).await {
-            Ok(Ok(evaluated)) => evaluated,
+            Ok(Ok(parsed)) => parsed,
             Ok(Err(join_err)) => Err(format!("syntax check task failed: {join_err}")),
             Err(_) => Err("syntax check timed out".to_owned()),
         };
@@ -462,3 +451,28 @@ fn contains_any_keyword<'a>(buf: &'a [u8], keywords: &'a [&str]) -> bool {
 }
 
 singleton!(CoreConfigValidator, CORECONFIGVALIDATOR);
+
+fn parse_script_syntax(content: &str) -> std::result::Result<(), std::string::String> {
+    use boa_engine::{Context, Script, Source};
+
+    let mut context = Context::default();
+    Script::parse(Source::from_bytes(content), None, &mut context)
+        .map(|_| ())
+        .map_err(|err| err.to_string())
+}
+
+#[cfg(test)]
+mod script_syntax_tests {
+    use super::parse_script_syntax;
+
+    #[test]
+    fn syntax_validation_does_not_execute_top_level_code() {
+        assert!(
+            parse_script_syntax(
+                "throw new Error('must not execute'); while (true) {} function main(config) { return config; }"
+            )
+            .is_ok()
+        );
+        assert!(parse_script_syntax("function main(config) {").is_err());
+    }
+}

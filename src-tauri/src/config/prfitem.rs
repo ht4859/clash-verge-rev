@@ -406,7 +406,7 @@ impl PrfItem {
                 proxies,
                 groups,
                 allow_auto_update,
-                ..PrfOption::default()
+                ..option.cloned().unwrap_or_default()
             }),
             home,
             updated: Some(chrono::Local::now().timestamp() as usize),
@@ -557,4 +557,61 @@ fn fix_dirty_url(input: &str) -> Result<Url> {
     }
 
     Ok(url)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{PrfItem, PrfOption};
+    use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
+
+    #[tokio::test]
+    async fn remote_profile_keeps_download_options_for_the_next_fetch() -> anyhow::Result<()> {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+        let url = format!("http://{}/profile.yaml", listener.local_addr()?);
+        let server = tokio::spawn(async move {
+            for _ in 0..2 {
+                let (mut stream, _) = listener.accept().await?;
+                let mut request = Vec::new();
+                while !request.windows(4).any(|part| part == b"\r\n\r\n") {
+                    if stream.read_buf(&mut request).await? == 0 {
+                        anyhow::bail!("subscription request ended before its headers");
+                    }
+                }
+                anyhow::ensure!(
+                    std::str::from_utf8(&request)?
+                        .to_ascii_lowercase()
+                        .contains("user-agent: required-agent\r\n"),
+                    "subscription requires its custom User-Agent"
+                );
+                let body = "proxies: []\n";
+                let response = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                );
+                stream.write_all(response.as_bytes()).await?;
+            }
+            anyhow::Ok(())
+        });
+        let options = PrfOption {
+            user_agent: Some("required-agent".into()),
+            timeout_seconds: Some(3),
+            with_proxy: Some(false),
+            self_proxy: Some(false),
+            danger_accept_invalid_certs: Some(true),
+            allow_auto_update: Some(false),
+            merge: Some("test-merge".into()),
+            script: Some("test-script".into()),
+            rules: Some("test-rules".into()),
+            proxies: Some("test-proxies".into()),
+            groups: Some("test-groups".into()),
+            ..Default::default()
+        };
+
+        let profile = PrfItem::from_url(&url, None, None, Some(&options)).await?;
+        assert_eq!(profile.option.as_ref(), Some(&options));
+        let refreshed = PrfItem::from_url(&url, None, None, profile.option.as_ref()).await?;
+        assert_eq!(refreshed.option.as_ref(), Some(&options));
+        server.await??;
+        Ok(())
+    }
 }

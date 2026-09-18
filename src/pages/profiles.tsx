@@ -930,9 +930,9 @@ const ProfilePage = () => {
                 mutateProfiles={mutateProfiles}
                 onSelect={(f) => onSelect(item.uid, f)}
                 onEdit={() => viewerRef.current?.edit(item)}
-                onSave={async (prev, curr) => {
+                onSave={(prev, curr) => {
                   if (prev !== curr && profiles.current === item.uid) {
-                    await onEnhance(false)
+                    void mutateLogs()
                   }
                 }}
                 onDelete={() => {
@@ -959,9 +959,9 @@ const ProfilePage = () => {
             <Grid size={{ xs: 12, sm: 6, md: 6, lg: 6 }}>
               <ProfileMore
                 id="Merge"
-                onSave={async (prev, curr) => {
+                onSave={(prev, curr) => {
                   if (prev !== curr) {
-                    await onEnhance(false)
+                    void mutateLogs()
                   }
                 }}
               />
@@ -970,9 +970,9 @@ const ProfilePage = () => {
               <ProfileMore
                 id="Script"
                 logInfo={chainLogs['Script']}
-                onSave={async (prev, curr) => {
+                onSave={(prev, curr) => {
                   if (prev !== curr) {
-                    await onEnhance(false)
+                    void mutateLogs()
                   }
                 }}
               />

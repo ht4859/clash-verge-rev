@@ -1,5 +1,4 @@
 import dayjs from 'dayjs'
-import { useEffect, useRef } from 'react'
 import { MihomoWebSocket, type LogLevel } from 'tauri-plugin-mihomo-api'
 
 import { getClashLogs } from '@/services/cmds'
@@ -51,14 +50,15 @@ export const useLogData = () => {
   const enableLog = clashLog.enable
   const logLevel = clashLog.logLevel.toUpperCase() as LogLevel
   const allowedTypes = LOG_LEVEL_FILTERS[logLevel] ?? DEFAULT_LOG_TYPES
-  const hasLoadedInitialLogsRef = useRef(false)
 
   const { response, refresh, setData } = useMihomoWsSubscription<ILogItem[]>({
     storageKey: 'mihomo_logs_date',
-    buildSubscriptKey: (date) => (enableLog ? `getClashLog-${date}` : null),
+    buildSubscriptKey: (date) =>
+      enableLog ? `getClashLog-${logLevel}-${date}` : null,
     fallbackData: [],
     connect: () => MihomoWebSocket.connect_logs(logLevel),
     setupHandlers: ({ next, scheduleReconnect, isMounted }) => {
+      let hasLoadedInitialLogs = false
       let flushTimer: ReturnType<typeof setTimeout> | null = null
       const buffer: ILogItem[] = []
       let flushTimeStr: string | null = null
@@ -113,12 +113,12 @@ export const useLogData = () => {
           }
         },
         async onConnected() {
-          if (hasLoadedInitialLogsRef.current) {
+          if (hasLoadedInitialLogs) {
             return
           }
           const logs = await getClashLogs()
-          hasLoadedInitialLogsRef.current = true
           if (isMounted()) {
+            hasLoadedInitialLogs = true
             next(null, (current) => {
               if (!current || current.length === 0) {
                 return clampLogs(filterLogsByLevel(logs, allowedTypes))
@@ -132,28 +132,10 @@ export const useLogData = () => {
     },
   })
 
-  const previousLogLevelRef = useRef<LogLevel | undefined>(logLevel)
-
-  useEffect(() => {
-    if (!logLevel) {
-      previousLogLevelRef.current = logLevel ?? undefined
-      return
-    }
-
-    if (previousLogLevelRef.current === logLevel) {
-      return
-    }
-
-    previousLogLevelRef.current = logLevel
-    hasLoadedInitialLogsRef.current = false
-    refresh()
-  }, [logLevel, refresh])
-
   const refreshGetClashLog = (clear = false) => {
     if (clear) {
       setData([])
     } else {
-      hasLoadedInitialLogsRef.current = false
       refresh()
     }
   }

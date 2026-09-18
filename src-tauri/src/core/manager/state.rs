@@ -345,6 +345,13 @@ impl CoreManager {
         #[cfg(target_os = "windows")]
         self.set_job_handle(None);
         proxy_control::stop_guard().await;
+        if let Err(error) = proxy_control::clear().await {
+            logging!(
+                error,
+                Type::Core,
+                "failed to clear the system proxy after sidecar PID {terminated_pid} exited: {error:#}"
+            );
+        }
         self.core_stopped();
     }
 }
