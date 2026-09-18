@@ -148,6 +148,66 @@ pub fn use_seq(seq: SeqMap, mut config: Mapping, field: &str) -> Mapping {
     config
 }
 
+pub fn use_proxies_for_all_groups(seq: SeqMap, config: Mapping) -> Mapping {
+    let mut added_proxy_names = collect_proxy_names(&seq.prepend);
+    added_proxy_names.extend(collect_proxy_names(&seq.append));
+    let mut seen = HashSet::new();
+    added_proxy_names.retain(|name| seen.insert(name.clone()));
+
+    let mut config = use_seq(seq, config, "proxies");
+    if added_proxy_names.is_empty() {
+        return config;
+    }
+
+    let Some(proxy_groups_value) = config.remove("proxy-groups") else {
+        return config;
+    };
+    let Value::Sequence(proxy_groups) = proxy_groups_value else {
+        config.insert(Value::String("proxy-groups".into()), proxy_groups_value);
+        return config;
+    };
+
+    let updated_groups = proxy_groups
+        .into_iter()
+        .map(|group| {
+            let Value::Mapping(mut group_map) = group else {
+                return group;
+            };
+
+            let existing = match group_map.remove("proxies") {
+                Some(Value::Sequence(proxies)) => proxies,
+                Some(value) => {
+                    group_map.insert(Value::String("proxies".into()), value);
+                    return Value::Mapping(group_map);
+                }
+                None => Sequence::new(),
+            };
+
+            let mut group_proxies = Sequence::new();
+            let mut group_names = HashSet::new();
+            for name in &added_proxy_names {
+                if group_names.insert(name.clone()) {
+                    group_proxies.push(Value::String(name.clone()));
+                }
+            }
+            for proxy in existing {
+                if let Value::String(name) = &proxy
+                    && !group_names.insert(name.clone())
+                {
+                    continue;
+                }
+                group_proxies.push(proxy);
+            }
+
+            group_map.insert(Value::String("proxies".into()), Value::Sequence(group_proxies));
+            Value::Mapping(group_map)
+        })
+        .collect();
+    config.insert(Value::String("proxy-groups".into()), Value::Sequence(updated_groups));
+
+    config
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

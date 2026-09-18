@@ -10,7 +10,7 @@ use self::{
     field::{use_keys, use_lowercase_owned, use_sort},
     merge::use_merge,
     script::use_script,
-    seq::{SeqMap, use_seq},
+    seq::{SeqMap, use_proxies_for_all_groups, use_seq},
     tun::use_tun,
 };
 use crate::config::dns::{DnsOverrideState, dns_override_source};
@@ -296,7 +296,7 @@ fn process_seq_items(
 
 fn process_global_proxies(mut config: Mapping, global_proxies: ChainItem) -> Mapping {
     if let ChainType::Proxies(proxies) = global_proxies.data {
-        config = use_seq(proxies, config, "proxies");
+        config = use_proxies_for_all_groups(proxies, config);
     }
 
     config
@@ -1334,6 +1334,14 @@ proxy-groups:
     type: select
     proxies:
       - subscription-node
+  - name: automatic
+    type: url-test
+    proxies:
+      - subscription-node
+  - name: provider-group
+    type: fallback
+    use:
+      - provider
 ",
         );
         let global_proxies = ChainItem {
@@ -1361,17 +1369,30 @@ proxy-groups:
             .collect::<Vec<_>>();
         assert_eq!(proxy_names, vec!["subscription-node", "custom-node"]);
 
-        let selector_nodes = config
+        let groups = config
             .get("proxy-groups")
             .and_then(serde_yaml_ng::Value::as_sequence)
-            .and_then(|groups| groups.first())
-            .and_then(|group| group.get("proxies"))
-            .and_then(serde_yaml_ng::Value::as_sequence)
-            .expect("selector nodes should be present")
+            .expect("proxy groups should be present");
+        let group_nodes = groups
             .iter()
-            .filter_map(serde_yaml_ng::Value::as_str)
+            .map(|group| {
+                group
+                    .get("proxies")
+                    .and_then(serde_yaml_ng::Value::as_sequence)
+                    .expect("global nodes should be added to every group")
+                    .iter()
+                    .filter_map(serde_yaml_ng::Value::as_str)
+                    .collect::<Vec<_>>()
+            })
             .collect::<Vec<_>>();
-        assert_eq!(selector_nodes, vec!["custom-node", "subscription-node"]);
+        assert_eq!(
+            group_nodes,
+            vec![
+                vec!["custom-node", "subscription-node"],
+                vec!["custom-node", "subscription-node"],
+                vec!["custom-node"],
+            ]
+        );
     }
 
     #[tokio::test]
