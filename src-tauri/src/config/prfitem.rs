@@ -562,36 +562,24 @@ fn fix_dirty_url(input: &str) -> Result<Url> {
 #[cfg(test)]
 mod tests {
     use super::{PrfItem, PrfOption};
-    use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
+    use warp::Filter as _;
 
     #[tokio::test]
     async fn remote_profile_keeps_download_options_for_the_next_fetch() -> anyhow::Result<()> {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
         let url = format!("http://{}/profile.yaml", listener.local_addr()?);
-        let server = tokio::spawn(async move {
-            for _ in 0..2 {
-                let (mut stream, _) = listener.accept().await?;
-                let mut request = Vec::new();
-                while !request.windows(4).any(|part| part == b"\r\n\r\n") {
-                    if stream.read_buf(&mut request).await? == 0 {
-                        anyhow::bail!("subscription request ended before its headers");
-                    }
-                }
-                anyhow::ensure!(
-                    std::str::from_utf8(&request)?
-                        .to_ascii_lowercase()
-                        .contains("user-agent: required-agent\r\n"),
-                    "subscription requires its custom User-Agent"
-                );
-                let body = "proxies: []\n";
-                let response = format!(
-                    "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
-                    body.len()
-                );
-                stream.write_all(response.as_bytes()).await?;
-            }
-            anyhow::Ok(())
-        });
+        let route = warp::path("profile.yaml")
+            .and(warp::header::exact("user-agent", "required-agent"))
+            .map(|| "proxies: []\n");
+        let (stop_server, stop_signal) = tokio::sync::oneshot::channel();
+        let server = tokio::spawn(
+            warp::serve(route)
+                .incoming(listener)
+                .graceful(async {
+                    let _ = stop_signal.await;
+                })
+                .run(),
+        );
         let options = PrfOption {
             user_agent: Some("required-agent".into()),
             timeout_seconds: Some(3),
@@ -611,7 +599,8 @@ mod tests {
         assert_eq!(profile.option.as_ref(), Some(&options));
         let refreshed = PrfItem::from_url(&url, None, None, profile.option.as_ref()).await?;
         assert_eq!(refreshed.option.as_ref(), Some(&options));
-        server.await??;
+        let _ = stop_server.send(());
+        server.await?;
         Ok(())
     }
 }
