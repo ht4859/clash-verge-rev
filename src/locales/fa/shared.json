@@ -39,7 +39,8 @@
     "password": "رمز عبور",
     "retryAttempts": "Retry attempts",
     "downloaded": "دانلود شده",
-    "uploaded": "بارگذاری شده"
+    "uploaded": "بارگذاری شده",
+    "manualUpdates": "Personal builds are updated using a local installer."
   },
   "statuses": {
     "enabled": "توانایی فعال شد",

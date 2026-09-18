@@ -168,9 +168,21 @@ async fn init_silent_updater() {
     use crate::core::SilentUpdater;
     use crate::core::handle::Handle;
 
-    logging!(debug, Type::Setup, "Initializing silent updater...");
-
     let app_handle = Handle::app_handle();
+    let has_update_endpoints = app_handle
+        .config()
+        .plugins
+        .0
+        .get("updater")
+        .and_then(|config| config.get("endpoints"))
+        .and_then(serde_json::Value::as_array)
+        .is_some_and(|endpoints| !endpoints.is_empty());
+    if !has_update_endpoints {
+        logging!(info, Type::Setup, "App updates disabled for this build");
+        return;
+    }
+
+    logging!(debug, Type::Setup, "Initializing silent updater...");
 
     // Install cached updates before starting background checks.
     if SilentUpdater::global().try_install_on_startup(app_handle).await {

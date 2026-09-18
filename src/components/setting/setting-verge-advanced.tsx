@@ -14,8 +14,11 @@ import {
   openLogsDir,
 } from '@/services/cmds'
 import { showNotice } from '@/services/notice-service'
-import { checkUpdateSafe as checkUpdate } from '@/services/update'
-import { version } from '@root/package.json'
+import {
+  APP_UPDATES_ENABLED,
+  checkUpdateSafe as checkUpdate,
+} from '@/services/update'
+import { displayVersion } from '@/utils/app-version'
 
 import { BackupViewer } from './mods/backup-viewer'
 import { ConfigViewer } from './mods/config-viewer'
@@ -44,6 +47,8 @@ const SettingVergeAdvanced = ({ onError: _ }: Props) => {
   const liteModeRef = useRef<DialogRef>(null)
 
   const onCheckUpdate = async () => {
+    if (!APP_UPDATES_ENABLED) return
+
     try {
       const info = await checkUpdate()
       updateLastCheckTime()
@@ -66,7 +71,7 @@ const SettingVergeAdvanced = ({ onError: _ }: Props) => {
   }, [])
 
   const copyVersion = useCallback(() => {
-    navigator.clipboard.writeText(`v${version}`).then(() => {
+    navigator.clipboard.writeText(`v${displayVersion}`).then(() => {
       showNotice.success(
         'settings.components.verge.advanced.notifications.versionCopied',
         1000,
@@ -123,8 +128,11 @@ const SettingVergeAdvanced = ({ onError: _ }: Props) => {
       />
 
       <SettingItem
-        onClick={onCheckUpdate}
+        onClick={APP_UPDATES_ENABLED ? onCheckUpdate : undefined}
         label={t('settings.components.verge.advanced.fields.checkUpdates')}
+        secondary={
+          APP_UPDATES_ENABLED ? undefined : t('shared.labels.manualUpdates')
+        }
       />
 
       <SettingItem
@@ -170,7 +178,7 @@ const SettingVergeAdvanced = ({ onError: _ }: Props) => {
           />
         }
       >
-        <Typography sx={{ py: '7px', pr: 1 }}>v{version}</Typography>
+        <Typography sx={{ py: '7px', pr: 1 }}>v{displayVersion}</Typography>
       </SettingItem>
     </SettingList>
   )

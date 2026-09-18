@@ -39,7 +39,8 @@
     "password": "Kata Sandi",
     "retryAttempts": "Retry attempts",
     "downloaded": "Diunduh",
-    "uploaded": "Diunggah"
+    "uploaded": "Diunggah",
+    "manualUpdates": "Personal builds are updated using a local installer."
   },
   "statuses": {
     "enabled": "Diaktifkan",

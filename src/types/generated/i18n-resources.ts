@@ -1482,6 +1482,7 @@ export interface TranslationResources {
         expireTime: string
         from: string
         icon: string
+        manualUpdates: string
         name: string
         password: string
         readOnly: string

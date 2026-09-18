@@ -1,5 +1,5 @@
 import { fetchCacheData, setCacheData, useQuery } from '@/services/query-client'
-import { checkUpdateSafe } from '@/services/update'
+import { APP_UPDATES_ENABLED, checkUpdateSafe } from '@/services/update'
 
 import { useVerge } from './use-verge'
 
@@ -12,7 +12,9 @@ export const readLastCheckTime = (): number | null => {
   return isNaN(ts) ? null : ts
 }
 
-export const updateLastCheckTime = (timestamp?: number): number => {
+export const updateLastCheckTime = (timestamp?: number): number | null => {
+  if (!APP_UPDATES_ENABLED) return null
+
   const now = timestamp ?? Date.now()
   localStorage.setItem(LAST_CHECK_KEY, now.toString())
   setCacheData([LAST_CHECK_KEY], now)
@@ -23,9 +25,12 @@ export const useUpdate = (enabled: boolean = true) => {
   const { verge } = useVerge()
   const { auto_check_update } = verge || {}
 
-  const shouldCheck = enabled && auto_check_update !== false
+  const shouldCheck =
+    APP_UPDATES_ENABLED && enabled && auto_check_update !== false
 
   const fetchUpdate = async () => {
+    if (!APP_UPDATES_ENABLED) return null
+
     const result = await checkUpdateSafe()
     updateLastCheckTime()
     return result
@@ -43,6 +48,8 @@ export const useUpdate = (enabled: boolean = true) => {
   })
 
   const checkUpdate = async () => {
+    if (!APP_UPDATES_ENABLED) return { data: null }
+
     const data = await fetchCacheData(['checkUpdate'], fetchUpdate)
     return { data }
   }
@@ -50,14 +57,15 @@ export const useUpdate = (enabled: boolean = true) => {
   const { data: lastCheckUpdate } = useQuery({
     queryKey: [LAST_CHECK_KEY],
     queryFn: readLastCheckTime,
+    enabled: APP_UPDATES_ENABLED,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   })
 
   return {
-    updateInfo,
+    updateInfo: APP_UPDATES_ENABLED ? updateInfo : null,
     checkUpdate,
-    loading: isValidating,
-    lastCheckUpdate: lastCheckUpdate ?? null,
+    loading: APP_UPDATES_ENABLED && isValidating,
+    lastCheckUpdate: APP_UPDATES_ENABLED ? (lastCheckUpdate ?? null) : null,
   }
 }

@@ -39,7 +39,8 @@
     "password": "Contraseña",
     "retryAttempts": "Retry attempts",
     "downloaded": "Descargado",
-    "uploaded": "Subido"
+    "uploaded": "Subido",
+    "manualUpdates": "Personal builds are updated using a local installer."
   },
   "statuses": {
     "enabled": "Habilitado",

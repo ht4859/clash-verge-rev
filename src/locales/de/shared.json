@@ -39,7 +39,8 @@
     "password": "Passwort",
     "retryAttempts": "Retry attempts",
     "downloaded": "Heruntergeladen",
-    "uploaded": "Hochgeladen"
+    "uploaded": "Hochgeladen",
+    "manualUpdates": "Personal builds are updated using a local installer."
   },
   "statuses": {
     "enabled": "Aktiviert",

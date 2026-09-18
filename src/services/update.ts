@@ -6,6 +6,9 @@ import {
 import { compareVersions as compareSemver } from 'compare-versions'
 
 import { version as appVersion } from '@root/package.json'
+import { plugins } from '@root/src-tauri/tauri.conf.json'
+
+export const APP_UPDATES_ENABLED = plugins.updater.endpoints.length > 0
 
 const SEMVER_FULL_REGEX =
   /^\d+(?:\.\d+){1,2}(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/
@@ -72,6 +75,8 @@ const localVersionNormalized = normalizeVersion(appVersion)
 export const checkUpdateSafe = async (
   options?: CheckOptions,
 ): Promise<Update | null> => {
+  if (!APP_UPDATES_ENABLED) return null
+
   const result = await check({ ...(options ?? {}), allowDowngrades: false })
   if (!result) return null
 

@@ -39,7 +39,8 @@
     "password": "비밀번호",
     "retryAttempts": "재시도 횟수",
     "downloaded": "다운로드됨",
-    "uploaded": "업로드됨"
+    "uploaded": "업로드됨",
+    "manualUpdates": "Personal builds are updated using a local installer."
   },
   "statuses": {
     "enabled": "사용",

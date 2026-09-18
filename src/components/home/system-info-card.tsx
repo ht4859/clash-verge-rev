@@ -21,7 +21,8 @@ import {
 import { useVerge } from '@/hooks/use-verge'
 import { getSystemInfo } from '@/services/cmds'
 import { showNotice } from '@/services/notice-service'
-import { version as appVersion } from '@root/package.json'
+import { APP_UPDATES_ENABLED } from '@/services/update'
+import { displayVersion } from '@/utils/app-version'
 
 import { EnhancedCard } from './enhanced-card'
 
@@ -60,7 +61,7 @@ export const SystemInfoCard = () => {
   }, [])
 
   useEffect(() => {
-    if (!verge?.auto_check_update) return
+    if (!APP_UPDATES_ENABLED || !verge?.auto_check_update) return
     if (readLastCheckTime() !== null) return
 
     updateLastCheckTime()
@@ -96,6 +97,8 @@ export const SystemInfoCard = () => {
   ])
 
   const onCheckUpdate = useLockFn(async () => {
+    if (!APP_UPDATES_ENABLED) return
+
     try {
       const result = await triggerCheckUpdate()
       const info = result.data
@@ -253,21 +256,26 @@ export const SystemInfoCard = () => {
           </Typography>
         </Stack>
         <Divider />
-        <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
+        <Stack direction="row" sx={{ justifyContent: 'space-between', gap: 2 }}>
           <Typography variant="body2" color="text.secondary">
-            {t('home.components.systemInfo.fields.lastCheckUpdate')}
+            {APP_UPDATES_ENABLED
+              ? t('home.components.systemInfo.fields.lastCheckUpdate')
+              : t('settings.components.verge.advanced.fields.checkUpdates')}
           </Typography>
           <Typography
             variant="body2"
-            onClick={onCheckUpdate}
+            onClick={APP_UPDATES_ENABLED ? onCheckUpdate : undefined}
             sx={{
-              cursor: 'pointer',
-              textDecoration: 'underline',
+              cursor: APP_UPDATES_ENABLED ? 'pointer' : 'default',
+              textDecoration: APP_UPDATES_ENABLED ? 'underline' : 'none',
               fontWeight: 'medium',
-              '&:hover': { opacity: 0.7 },
+              textAlign: 'right',
+              '&:hover': { opacity: APP_UPDATES_ENABLED ? 0.7 : 1 },
             }}
           >
-            {lastCheckUpdateText}
+            {APP_UPDATES_ENABLED
+              ? lastCheckUpdateText
+              : t('shared.labels.manualUpdates')}
           </Typography>
         </Stack>
         <Divider />
@@ -276,7 +284,7 @@ export const SystemInfoCard = () => {
             {t('home.components.systemInfo.fields.vergeVersion')}
           </Typography>
           <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-            v{appVersion}
+            v{displayVersion}
           </Typography>
         </Stack>
       </Stack>

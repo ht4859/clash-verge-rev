@@ -839,6 +839,7 @@ export const translationKeys = [
   'shared.labels.retryAttempts',
   'shared.labels.downloaded',
   'shared.labels.uploaded',
+  'shared.labels.manualUpdates',
   'shared.statuses.enabled',
   'shared.statuses.disabled',
   'shared.statuses.saving',

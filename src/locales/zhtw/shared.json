@@ -39,7 +39,8 @@
     "password": "密碼",
     "retryAttempts": "重試次數",
     "downloaded": "下載量",
-    "uploaded": "上傳量"
+    "uploaded": "上傳量",
+    "manualUpdates": "個人版透過本機安裝套件更新"
   },
   "statuses": {
     "enabled": "已啟用",

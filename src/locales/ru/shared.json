@@ -39,7 +39,8 @@
     "password": "Пароль",
     "retryAttempts": "Число попыток",
     "downloaded": "Скачано",
-    "uploaded": "Загружено"
+    "uploaded": "Загружено",
+    "manualUpdates": "Personal builds are updated using a local installer."
   },
   "statuses": {
     "enabled": "Включено",

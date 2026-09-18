@@ -39,7 +39,8 @@
     "password": "Пароль",
     "retryAttempts": "Retry attempts",
     "downloaded": "Йөкләнгән",
-    "uploaded": "Чыгарылган"
+    "uploaded": "Чыгарылган",
+    "manualUpdates": "Personal builds are updated using a local installer."
   },
   "statuses": {
     "enabled": "Кушылган",

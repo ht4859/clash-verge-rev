@@ -39,7 +39,8 @@
     "password": "Şifre",
     "retryAttempts": "Retry attempts",
     "downloaded": "İndirilen",
-    "uploaded": "Yüklenen"
+    "uploaded": "Yüklenen",
+    "manualUpdates": "Personal builds are updated using a local installer."
   },
   "statuses": {
     "enabled": "Etkin",

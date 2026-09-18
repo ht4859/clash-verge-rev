@@ -39,7 +39,8 @@
     "password": "كلمة المرور",
     "retryAttempts": "Retry attempts",
     "downloaded": "تم التنزيل",
-    "uploaded": "تم الرفع"
+    "uploaded": "تم الرفع",
+    "manualUpdates": "Personal builds are updated using a local installer."
   },
   "statuses": {
     "enabled": "ممكّن",

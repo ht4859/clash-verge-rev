@@ -39,7 +39,8 @@
     "password": "パスワード",
     "retryAttempts": "Retry attempts",
     "downloaded": "ダウンロード量",
-    "uploaded": "アップロード量"
+    "uploaded": "アップロード量",
+    "manualUpdates": "Personal builds are updated using a local installer."
   },
   "statuses": {
     "enabled": "有効",
