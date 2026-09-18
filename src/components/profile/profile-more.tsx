@@ -24,7 +24,6 @@ import { ProxiesEditorViewer } from './proxies-editor-viewer'
 interface Props {
   logInfo?: [string, string][]
   id: 'Merge' | 'Script' | 'GlobalProxies'
-  currentProfileUid?: string
   onSave?: (prev?: string, curr?: string) => void
 }
 
@@ -41,7 +40,7 @@ function main(config, profileName) {
 
 // profile enhanced item
 export const ProfileMore = (props: Props) => {
-  const { id, logInfo, onSave, currentProfileUid } = props
+  const { id, logInfo, onSave } = props
 
   const entries = logInfo ?? EMPTY_LOG_INFO
   const { t } = useTranslation()
@@ -243,7 +242,6 @@ export const ProfileMore = (props: Props) => {
       {proxiesOpen && (
         <ProxiesEditorViewer
           open={true}
-          profileUid={currentProfileUid}
           property="GlobalProxies"
           onClose={() => setProxiesOpen(false)}
           onSave={onSave}

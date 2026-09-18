@@ -223,7 +223,7 @@ export const ProxiesEditorViewer = (props: Props) => {
     parseBatch()
   }
   const fetchProfile = useCallback(async () => {
-    if (!profileUid) {
+    if (property === 'GlobalProxies' || !profileUid) {
       setProxyList([])
       return
     }
@@ -234,7 +234,7 @@ export const ProxiesEditorViewer = (props: Props) => {
     } | null
 
     setProxyList(originProxiesObj?.proxies || [])
-  }, [profileUid])
+  }, [profileUid, property])
 
   const fetchContent = useCallback(async () => {
     hasLoadedSeqConfigRef.current = false

@@ -980,7 +980,6 @@ const ProfilePage = () => {
             <Grid size={{ xs: 12, sm: 6, md: 4, lg: 4 }}>
               <ProfileMore
                 id="GlobalProxies"
-                currentProfileUid={profiles.current}
                 onSave={(prev, curr) => {
                   if (prev !== curr) {
                     void mutateLogs()
