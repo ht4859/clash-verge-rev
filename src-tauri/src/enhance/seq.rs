@@ -167,6 +167,7 @@ pub fn use_proxies_for_all_groups(seq: SeqMap, config: Mapping) -> Mapping {
         return config;
     };
 
+    let added_proxy_name_set = added_proxy_names.iter().cloned().collect::<HashSet<_>>();
     let updated_groups = proxy_groups
         .into_iter()
         .map(|group| {
@@ -185,18 +186,18 @@ pub fn use_proxies_for_all_groups(seq: SeqMap, config: Mapping) -> Mapping {
 
             let mut group_proxies = Sequence::new();
             let mut group_names = HashSet::new();
-            for name in &added_proxy_names {
-                if group_names.insert(name.clone()) {
-                    group_proxies.push(Value::String(name.clone()));
-                }
-            }
             for proxy in existing {
                 if let Value::String(name) = &proxy
-                    && !group_names.insert(name.clone())
+                    && (added_proxy_name_set.contains(name) || !group_names.insert(name.clone()))
                 {
                     continue;
                 }
                 group_proxies.push(proxy);
+            }
+            for name in &added_proxy_names {
+                if group_names.insert(name.clone()) {
+                    group_proxies.push(Value::String(name.clone()));
+                }
             }
 
             group_map.insert(Value::String("proxies".into()), Value::Sequence(group_proxies));

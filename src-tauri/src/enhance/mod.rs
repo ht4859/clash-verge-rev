@@ -1388,8 +1388,8 @@ proxy-groups:
         assert_eq!(
             group_nodes,
             vec![
-                vec!["custom-node", "subscription-node"],
-                vec!["custom-node", "subscription-node"],
+                vec!["subscription-node", "custom-node"],
+                vec!["subscription-node", "custom-node"],
                 vec!["custom-node"],
             ]
         );
