@@ -86,11 +86,13 @@
     "more": {
       "global": {
         "merge": "전역 확장 구성",
-        "script": "전역 확장 스크립트"
+        "script": "전역 확장 스크립트",
+        "proxies": "전역 사용자 지정 노드"
       },
       "chips": {
         "merge": "병합",
-        "script": "스크립트"
+        "script": "스크립트",
+        "proxies": "노드"
       }
     },
     "profileItem": {

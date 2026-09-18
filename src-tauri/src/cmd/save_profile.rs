@@ -25,6 +25,7 @@ pub async fn save_profile_file(index: String, file_data: Option<String>) -> CmdR
     let backup_trigger = match index.as_str() {
         "Merge" => Some(AutoBackupTrigger::GlobalMerge),
         "Script" => Some(AutoBackupTrigger::GlobalScript),
+        "GlobalProxies" => Some(AutoBackupTrigger::GlobalProxies),
         _ => None,
     };
 
@@ -102,7 +103,7 @@ fn profile_affects_runtime(profiles: &IProfiles, index: &str) -> bool {
     let Some(current_uid) = profiles.current.as_ref() else {
         return false;
     };
-    if current_uid == index || matches!(index, "Merge" | "Script") {
+    if current_uid == index || matches!(index, "Merge" | "Script" | "GlobalProxies") {
         return true;
     }
 
@@ -200,7 +201,14 @@ mod tests {
             }]),
         };
 
-        for uid in ["Merge", "Script", "private-merge", "private-script", "active"] {
+        for uid in [
+            "Merge",
+            "Script",
+            "GlobalProxies",
+            "private-merge",
+            "private-script",
+            "active",
+        ] {
             assert!(profile_affects_runtime(&profiles, uid));
         }
         assert!(!profile_affects_runtime(&profiles, "unrelated"));

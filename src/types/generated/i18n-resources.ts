@@ -288,10 +288,12 @@ export interface TranslationResources {
         more: {
           chips: {
             merge: string
+            proxies: string
             script: string
           }
           global: {
             merge: string
+            proxies: string
             script: string
           }
         }

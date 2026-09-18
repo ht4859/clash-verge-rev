@@ -19,10 +19,12 @@ import { showNotice } from '@/services/notice-service'
 
 import { LogViewer } from './log-viewer'
 import { ProfileBox } from './profile-box'
+import { ProxiesEditorViewer } from './proxies-editor-viewer'
 
 interface Props {
   logInfo?: [string, string][]
-  id: 'Merge' | 'Script'
+  id: 'Merge' | 'Script' | 'GlobalProxies'
+  currentProfileUid?: string
   onSave?: (prev?: string, curr?: string) => void
 }
 
@@ -39,13 +41,14 @@ function main(config, profileName) {
 
 // profile enhanced item
 export const ProfileMore = (props: Props) => {
-  const { id, logInfo, onSave } = props
+  const { id, logInfo, onSave, currentProfileUid } = props
 
   const entries = logInfo ?? EMPTY_LOG_INFO
   const { t } = useTranslation()
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
   const [position, setPosition] = useState({ left: 0, top: 0 })
   const [fileOpen, setFileOpen] = useState(false)
+  const [proxiesOpen, setProxiesOpen] = useState(false)
   const [logOpen, setLogOpen] = useState(false)
 
   const loadDocument = useCallback(() => readProfileFile(id), [id])
@@ -57,6 +60,11 @@ export const ProfileMore = (props: Props) => {
   const onEditFile = () => {
     setAnchorEl(null)
     setFileOpen(true)
+  }
+
+  const onEditProxies = () => {
+    setAnchorEl(null)
+    setProxiesOpen(true)
   }
 
   const onOpenFile = useLockFn(async () => {
@@ -73,15 +81,23 @@ export const ProfileMore = (props: Props) => {
   const globalTitles: Record<Props['id'], string> = {
     Merge: 'profiles.components.more.global.merge',
     Script: 'profiles.components.more.global.script',
+    GlobalProxies: 'profiles.components.more.global.proxies',
   }
 
   const chipLabels: Record<Props['id'], string> = {
     Merge: 'profiles.components.more.chips.merge',
     Script: 'profiles.components.more.chips.script',
+    GlobalProxies: 'profiles.components.more.chips.proxies',
   }
 
   const itemMenu = [
-    { label: 'profiles.components.menu.editFile', handler: onEditFile },
+    {
+      label:
+        id === 'GlobalProxies'
+          ? 'profiles.components.menu.editProxies'
+          : 'profiles.components.menu.editFile',
+      handler: id === 'GlobalProxies' ? onEditProxies : onEditFile,
+    },
     { label: 'profiles.components.menu.openFile', handler: onOpenFile },
   ]
 
@@ -110,7 +126,7 @@ export const ProfileMore = (props: Props) => {
   return (
     <>
       <ProfileBox
-        onDoubleClick={onEditFile}
+        onDoubleClick={id === 'GlobalProxies' ? onEditProxies : onEditFile}
         onContextMenu={(event) => {
           const { clientX, clientY } = event
           setPosition({ top: clientY, left: clientX })
@@ -222,6 +238,15 @@ export const ProfileMore = (props: Props) => {
           onSave={handleSave}
           onResetToDefault={id === 'Script' ? handleResetToDefault : undefined}
           onClose={() => setFileOpen(false)}
+        />
+      )}
+      {proxiesOpen && (
+        <ProxiesEditorViewer
+          open={true}
+          profileUid={currentProfileUid}
+          property="GlobalProxies"
+          onClose={() => setProxiesOpen(false)}
+          onSave={onSave}
         />
       )}
       {logOpen && (

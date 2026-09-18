@@ -86,11 +86,13 @@
     "more": {
       "global": {
         "merge": "全局扩展覆写配置",
-        "script": "全局扩展脚本"
+        "script": "全局扩展脚本",
+        "proxies": "全局自建节点"
       },
       "chips": {
         "merge": "Merge",
-        "script": "Script"
+        "script": "Script",
+        "proxies": "节点"
       }
     },
     "profileItem": {

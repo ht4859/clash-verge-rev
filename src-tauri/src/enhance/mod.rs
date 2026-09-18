@@ -53,6 +53,7 @@ struct ProfileItems {
     rules_item: ChainItem,
     proxies_item: ChainItem,
     groups_item: ChainItem,
+    global_proxies: ChainItem,
     global_merge: ChainItem,
     global_script: ChainItem,
     profile_name: String,
@@ -82,6 +83,10 @@ impl Default for ProfileItems {
             groups_item: ChainItem {
                 uid: "".into(),
                 data: ChainType::Groups(SeqMap::default()),
+            },
+            global_proxies: ChainItem {
+                uid: "GlobalProxies".into(),
+                data: ChainType::Proxies(SeqMap::default()),
             },
             global_merge: ChainItem {
                 uid: "Merge".into(),
@@ -196,7 +201,7 @@ async fn collect_profile_items(profiles: &IProfiles) -> Result<ProfileItems> {
 
     let name = current_item.name.clone().unwrap_or_default();
 
-    let (merge_item, script_item, rules_item, proxies_item, groups_item, global_merge, global_script) = tokio::join!(
+    let (merge_item, script_item, rules_item, proxies_item, groups_item, global_proxies, global_merge, global_script) = tokio::join!(
         chain_item_or_default(profiles.get_item(&merge_uid).ok(), || ChainItem {
             uid: "".into(),
             data: ChainType::Merge(Mapping::new()),
@@ -217,6 +222,10 @@ async fn collect_profile_items(profiles: &IProfiles) -> Result<ProfileItems> {
             uid: "".into(),
             data: ChainType::Groups(SeqMap::default()),
         },),
+        chain_item_or_default(profiles.get_item("GlobalProxies").ok(), || ChainItem {
+            uid: "GlobalProxies".into(),
+            data: ChainType::Proxies(SeqMap::default()),
+        },),
         chain_item_or_default(profiles.get_item("Merge").ok(), || ChainItem {
             uid: "Merge".into(),
             data: ChainType::Merge(Mapping::new()),
@@ -234,6 +243,7 @@ async fn collect_profile_items(profiles: &IProfiles) -> Result<ProfileItems> {
         rules_item,
         proxies_item,
         groups_item,
+        global_proxies,
         global_merge,
         global_script,
         profile_name: name,
@@ -279,6 +289,14 @@ fn process_seq_items(
 
     if let ChainType::Groups(groups) = groups_item.data {
         config = use_seq(groups, config, "proxy-groups");
+    }
+
+    config
+}
+
+fn process_global_proxies(mut config: Mapping, global_proxies: ChainItem) -> Mapping {
+    if let ChainType::Proxies(proxies) = global_proxies.data {
+        config = use_seq(proxies, config, "proxies");
     }
 
     config
@@ -776,6 +794,7 @@ pub async fn enhance(
     let rules_item = profile.rules_item;
     let proxies_item = profile.proxies_item;
     let groups_item = profile.groups_item;
+    let global_proxies = profile.global_proxies;
     let global_merge = profile.global_merge;
     let global_script = profile.global_script;
     let profile_name = profile.profile_name;
@@ -817,6 +836,7 @@ pub async fn enhance(
     let (config, exists_keys, result_map) =
         process_profile_items(config, exists_keys, result_map, merge_item, script_item, &profile_name).await;
 
+    let config = process_global_proxies(config, global_proxies);
     let config = authoritative.enforce(config);
     let config = ensure_lan_bind_address(config);
 
@@ -1293,12 +1313,65 @@ mod authoritative_field_tests {
 mod tests {
     use super::{
         ChainItem, ChainType, cleanup_proxy_groups, ensure_lan_bind_address, process_global_items,
-        process_profile_items, use_keys,
+        process_global_proxies, process_profile_items, use_keys,
     };
+    use crate::enhance::seq::SeqMap;
     use std::collections::HashMap;
 
     fn mapping(yaml: &str) -> serde_yaml_ng::Mapping {
         serde_yaml_ng::from_str(yaml).expect("test config should be valid")
+    }
+
+    #[test]
+    fn global_custom_nodes_apply_after_profile_enhancements() {
+        let config = mapping(
+            r"
+proxies:
+  - name: subscription-node
+    type: ss
+proxy-groups:
+  - name: selector
+    type: select
+    proxies:
+      - subscription-node
+",
+        );
+        let global_proxies = ChainItem {
+            uid: "GlobalProxies".into(),
+            data: ChainType::Proxies(SeqMap {
+                append: serde_yaml_ng::from_str(
+                    r"
+- name: custom-node
+  type: ss
+",
+                )
+                .expect("global proxies should be valid"),
+                ..Default::default()
+            }),
+        };
+        let config = process_global_proxies(config, global_proxies);
+
+        let proxy_names = config
+            .get("proxies")
+            .and_then(serde_yaml_ng::Value::as_sequence)
+            .expect("proxies should be present")
+            .iter()
+            .filter_map(|proxy| proxy.get("name"))
+            .filter_map(serde_yaml_ng::Value::as_str)
+            .collect::<Vec<_>>();
+        assert_eq!(proxy_names, vec!["subscription-node", "custom-node"]);
+
+        let selector_nodes = config
+            .get("proxy-groups")
+            .and_then(serde_yaml_ng::Value::as_sequence)
+            .and_then(|groups| groups.first())
+            .and_then(|group| group.get("proxies"))
+            .and_then(serde_yaml_ng::Value::as_sequence)
+            .expect("selector nodes should be present")
+            .iter()
+            .filter_map(serde_yaml_ng::Value::as_str)
+            .collect::<Vec<_>>();
+        assert_eq!(selector_nodes, vec!["custom-node", "subscription-node"]);
     }
 
     #[tokio::test]

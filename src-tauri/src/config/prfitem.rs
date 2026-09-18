@@ -464,7 +464,14 @@ impl PrfItem {
     }
 
     fn from_proxies() -> Self {
-        let uid = help::get_uid("p").into();
+        Self::from_proxies_with_uid(help::get_uid("p").into())
+    }
+
+    pub(super) fn from_global_proxies() -> Self {
+        Self::from_proxies_with_uid("GlobalProxies".into())
+    }
+
+    fn from_proxies_with_uid(uid: String) -> Self {
         let file = format!("{uid}.yaml").into(); // yaml ext
 
         Self {

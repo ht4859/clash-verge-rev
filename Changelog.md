@@ -1,3 +1,12 @@
+## v8.2
+
+<details>
+<summary><strong> ✨ 新增功能 </strong></summary>
+
+- 新增全局自建节点，切换或更新订阅后仍会保留并应用
+
+</details>
+
 ## v8.1
 
 > [!IMPORTANT]

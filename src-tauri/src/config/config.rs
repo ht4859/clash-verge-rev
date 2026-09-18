@@ -125,13 +125,24 @@ impl Config {
             return Ok(());
         }
 
-        if profiles.latest_arc().get_item("Merge").is_err() {
+        let merge_missing = profiles.latest_arc().get_item("Merge").is_err();
+        let script_missing = profiles.latest_arc().get_item("Script").is_err();
+        let global_proxies_missing = profiles.latest_arc().get_item("GlobalProxies").is_err();
+
+        if merge_missing {
             let merge_item = &mut PrfItem::from_merge(Some("Merge".into()));
             profiles_append_item_to_safe(&profiles, merge_item).await?;
         }
-        if profiles.latest_arc().get_item("Script").is_err() {
+        if script_missing {
             let script_item = &mut PrfItem::from_script(Some("Script".into()));
             profiles_append_item_to_safe(&profiles, script_item).await?;
+        }
+        if global_proxies_missing {
+            let proxies_item = &mut PrfItem::from_global_proxies();
+            profiles_append_item_to_safe(&profiles, proxies_item).await?;
+        }
+        if merge_missing || script_missing || global_proxies_missing {
+            profiles.latest_arc().save_file().await?;
         }
         Ok(())
     }

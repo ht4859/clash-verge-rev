@@ -86,11 +86,13 @@
     "more": {
       "global": {
         "merge": "Global Extend Config",
-        "script": "Global Extend Script"
+        "script": "Global Extend Script",
+        "proxies": "全域自建節點"
       },
       "chips": {
         "merge": "Merge",
-        "script": "Script"
+        "script": "Script",
+        "proxies": "節點"
       }
     },
     "profileItem": {

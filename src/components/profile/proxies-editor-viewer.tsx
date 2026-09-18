@@ -44,7 +44,7 @@ import {
 } from './grouped-virtual-list'
 
 interface Props {
-  profileUid: string
+  profileUid?: string
   property: string
   open: boolean
   onClose: () => void
@@ -223,6 +223,10 @@ export const ProxiesEditorViewer = (props: Props) => {
     parseBatch()
   }
   const fetchProfile = useCallback(async () => {
+    if (!profileUid) {
+      setProxyList([])
+      return
+    }
     const data = await readProfileFile(profileUid)
 
     const originProxiesObj = parseYamlSafe(data) as {

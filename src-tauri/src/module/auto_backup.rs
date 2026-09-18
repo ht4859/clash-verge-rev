@@ -34,6 +34,7 @@ pub enum AutoBackupTrigger {
     Scheduled,
     GlobalMerge,
     GlobalScript,
+    GlobalProxies,
 }
 
 impl AutoBackupTrigger {
@@ -42,6 +43,7 @@ impl AutoBackupTrigger {
             Self::Scheduled => "scheduled",
             Self::GlobalMerge => "merge",
             Self::GlobalScript => "script",
+            Self::GlobalProxies => "proxies",
         }
     }
 
